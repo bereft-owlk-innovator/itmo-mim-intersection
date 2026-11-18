@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simulation</title><link rel="stylesheet" href="/style.css"></head>
+<body class="no-stats no-signals no-conflicts">
+<header>
+  <div class="brand"><span class="logo">╋</span><div><h1>Перекрёсток</h1></div></div>
+  <div class="controls"><button id="play" class="primary">Ⅱ Пауза</button><button id="step" title="Пауза и шаг 0,5 секунды">Шаг +0,5 с</button><button id="reset" title="Новый эксперимент с тем же seed и текущим графом">↺ Сначала</button><select id="speed" aria-label="Скорость моделирования"><option value="0.5">×0,5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select></div>
+</header>
+<main>
+  <section class="map-panel">
+    <div class="map-toolbar"><span class="live"><i></i><span id="status">Подключение…</span></span><span class="time" id="time">00:00.0</span><label><input type="checkbox" id="links" checked> Связи</label><label><input type="checkbox" id="edit"> Редактировать граф</label></div>
+    <div class="map-wrap"><canvas id="map" aria-label="Перекрёсток: перетащите входную вершину на выходную для создания связи"></canvas><div class="map-note" id="hint">Включите редактирование, чтобы соединять полосы</div><div class="map-key"><span><i style="background:#3783bb"></i> N</span><span><i style="background:#258c80"></i> E</span><span><i style="background:#ce923d"></i> S</span><span><i style="background:#ac5676"></i> W</span><span>цвет = откуда приехала машина</span></div></div>
+    <div class="bottom-bar"><span>3 + 3 полосы · правостороннее движение</span><button id="defaults">Восстановить исходные связи</button></div>
+  </section>
+  <aside>
+    <div class="section-title">ТЕКУЩИЙ ЭКСПЕРИМЕНТ <span id="revision">#1</span></div>
+    <div class="metrics">
+      <div><span>На схеме</span><strong id="active">0</strong><small>машин</small></div>
+      <div><span>В очереди</span><strong id="queue">0</strong><small>включая входы</small></div>
+      <div><span>Средняя задержка</span><strong id="delay">—</strong><small>секунд / машину</small></div>
+      <div class="conflict-card"><span>Конфликты</span><strong id="conflicts" class="danger">0</strong><small>эпизодов сближения</small></div>
+    </div>
+    <div class="summary"><span>Создано <b id="generated">0</b></span><span>Уехало <b id="completed">0</b></span><span>Вне схемы <b id="pending">0</b></span></div>
+    <div class="chart-box"><div class="chart-title">Число машин <span><i class="dot blue"></i> на схеме <i class="dot orange"></i> очередь</span></div><canvas id="count-chart"></canvas></div>
+    <div class="chart-box"><div class="chart-title">Средняя задержка <span>с / уехавшую машину</span></div><canvas id="delay-chart"></canvas></div>
+    <details open><summary>Как устроен эксперимент</summary><p>Каждый вход создаёт машины со своим распределением интервалов. На бирюзовой линии машина выбирает полосу под желаемый манёвр.</p><p class="signal-note">У стоп-линии три индикатора на полосу: <b>← ↑ →</b>. Они показывают разрешение с учётом основного сигнала и дополнительных секций.</p><p class="conflict-note">Красная обводка машины — конфликт. Такие сближения считаются, но проезд не запрещается.</p></details>
+    <div class="code-tip"><span class="file-icon">Py</span><div>Редактируйте <code>scenario.py</code><small>Ctrl+S → новый эксперимент с тем же графом</small></div></div>
+    <a href="/api/stats.csv" download="traffic-statistics.csv" class="export">↓ Скачать статистику CSV</a>
+  </aside>
+</main>
+<div id="error" role="alert" hidden></div><div id="toast" role="status" hidden></div>
+<script src="/app.js"></script>
+</body></html>
