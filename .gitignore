@@ -5,3 +5,4 @@ results/*
 !results/.gitkeep
 connections.json
 .DS_Store
+results/results*
