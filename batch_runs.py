@@ -18,6 +18,24 @@ from simulation import Simulation
 
 DT = 0.05
 
+_RUN_ONCE_RESULT_KEYS = (
+    "run_id", "plan_id", "seed", "T", "W", "demand_scale",
+    "phase_scheme", "controller", "peak_enabled", "peak_approach",
+    "peak_start", "peak_end", "peak_multiplier", "physics",
+    "cycle", "clearance", "ns_green", "ew_green",
+    "generated", "completed", "remaining", "mean_queue_after_warmup",
+    "max_queue_after_warmup", "final_queue", "delay_completed_sec",
+    "flow_completed_per_hour", "conflicts", "conflicts_per_100_completed",
+    "accumulated_delay_machine_sec",
+    "mean_queue_N", "mean_queue_E", "mean_queue_S", "mean_queue_W",
+    "max_queue_N", "max_queue_E", "max_queue_S", "max_queue_W",
+    "mean_delay_N_sec", "mean_delay_E_sec", "mean_delay_S_sec",
+    "mean_delay_W_sec", "delay_p95_sec", "queue_mean_last_quarter",
+    "queue_mean_second_quarter", "objective_value", "webster_cycle_sec",
+    "webster_lost_time_sec", "webster_flow_ratio", "conflicts_by_phase",
+    "peak_max_queue", "peak_recovery_time_sec", "adaptive_green_extensions",
+)
+
 
 def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
@@ -41,6 +59,11 @@ def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0):
     # запусков используем эквивалентный закон с параметрами текущего прогона.
     config.green = lambda side, lane, turn, t: scenario.signal_for(config, side, lane, turn, t)
     return config
+
+
+def run_once(plan, seed, T, W, demand_scale, options) -> dict:
+    """Return the complete result shape until the one-run API is implemented."""
+    return {key: None for key in _RUN_ONCE_RESULT_KEYS}
 
 
 def run_one(seed, seconds, warmup, ns_green=None, cycle=None, demand_scale=1.0):
