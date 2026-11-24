@@ -26,6 +26,11 @@ ARRIVALS = {
 }
 
 
+def rate_multiplier(approach, t):
+    """Множитель интенсивности прибытия; для базового сценария спрос постоянный."""
+    return 0,95 
+
+
 def desired_turn(side, rng):
     """Распределение желаемых манёвров: 25% налево, 60% прямо, 15% направо."""
     return rng.choices(
