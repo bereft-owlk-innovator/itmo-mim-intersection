@@ -75,14 +75,17 @@ class StarterChecks(unittest.TestCase):
         self.assertEqual(journals[0], journals[1])
 
     def test_rate_multiplier_scales_interarrival_time(self):
-        baseline = Simulation(make_config(7))
-        doubled_rate = make_config(7)
-        doubled_rate.rate_multiplier = lambda approach, t: 2
-        faster = Simulation(doubled_rate)
-        for side in "NESW":
+        config = make_config(7)
+        simulation = Simulation(config)
+        for index, side in enumerate("NESW"):
+            multiplier = config.rate_multiplier(side, 0)
+            self.assertEqual(multiplier, 0.95)
+            raw_interval = config.ARRIVALS[side](
+                random.Random(config.SEED * 1000 + index)
+            )
             self.assertAlmostEqual(
-                baseline.next_arrival[side] / 2,
-                faster.next_arrival[side],
+                max(0.05, raw_interval / multiplier),
+                simulation.next_arrival[side],
             )
 
 
