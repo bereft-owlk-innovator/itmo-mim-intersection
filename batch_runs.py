@@ -77,25 +77,28 @@ def run_one(seed, seconds, warmup, ns_green=None, cycle=None, demand_scale=1.0):
     avg_queue = sum(row["queue"] for row in rows) / len(rows) if rows else float("nan")
     max_queue = max((row["queue"] for row in rows), default=0)
     return {
-        "seed": seed,
-        "seconds": seconds,
-        "cycle": config.CYCLE,
-        "clearance": config.CLEARANCE,
-        "ns_green": config.NS_GREEN,
-        "ew_green": config.EW_GREEN,
-        "demand_scale": demand_scale,
-        "generated": metrics["generated"],
-        "completed": metrics["completed"],
-        "remaining": metrics["generated"] - metrics["completed"],
-        "mean_queue_after_warmup": round(avg_queue, 2),
-        "max_queue_after_warmup": max_queue,
-        "final_queue": metrics["queue"],
-        "delay_completed_sec": metrics["delay"],
-        "flow_completed_per_hour": metrics["flow"],
-        "conflicts": metrics["conflicts"],
-        "conflicts_per_100_completed": round(
-            100 * metrics["conflicts"] / max(1, metrics["completed"]), 2
-        ),
+        "rows":{
+            "seed": seed,
+            "seconds": seconds,
+            "cycle": config.CYCLE,
+            "clearance": config.CLEARANCE,
+            "ns_green": config.NS_GREEN,
+            "ew_green": config.EW_GREEN,
+            "demand_scale": demand_scale,
+            "generated": metrics["generated"],
+            "completed": metrics["completed"],
+            "remaining": metrics["generated"] - metrics["completed"],
+            "mean_queue_after_warmup": round(avg_queue, 2),
+            "max_queue_after_warmup": max_queue,
+            "final_queue": metrics["queue"],
+            "delay_completed_sec": metrics["delay"],
+            "flow_completed_per_hour": metrics["flow"],
+            "conflicts": metrics["conflicts"],
+            "conflicts_per_100_completed": round(
+                100 * metrics["conflicts"] / max(1, metrics["completed"]), 2
+            ),
+        },
+        "demand_log": list(sim.demand_log),
     }
 
 
@@ -109,6 +112,7 @@ def main():
     p.add_argument("--demand-scale", type=float, default=1.0,
                    help="Множитель интенсивности всех входящих потоков (0.5–1.5)")
     p.add_argument("--out", type=Path, default=Path("results/results.csv"))
+    p.add_argument("--demand-log", type=Path, default=Path("results/demand_log.csv"))
     a = p.parse_args()
     if not (60 <= a.seconds <= 900) or not (0 <= a.warmup < a.seconds):
         p.error("Требуется 60 <= seconds <= 900 и 0 <= warmup < seconds")
@@ -121,16 +125,29 @@ def main():
     if not (0.5 <= a.demand_scale <= 1.5):
         p.error("Требуется 0.5 <= demand-scale <= 1.5")
     try:
-        rows = [run_one(seed, a.seconds, a.warmup, a.ns_green,
+        results = [run_one(seed, a.seconds, a.warmup, a.ns_green,
                         a.cycle, a.demand_scale) for seed in a.seeds]
+        rows = [r["rows"] for r in results]
+        demand_log = [r["demand_log"] for r in results]
     except ValueError as exc:
         p.error(str(exc))
+
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with a.out.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(rows[:-1])
     print(f"Сохранено: {a.out}")
+
+    a.demand_log.parent.mkdir(parents=True, exist_ok=True)
+    with a.demand_log.open("w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=list(demand_log[0][0]))
+        writer.writeheader()
+        for i, launch in enumerate(demand_log):
+            f.write(f"Launch {i + 1}\n")
+            writer.writerows(launch[:-1])
+    print(f"Журнал входного спроса: {a.demand_log}")
+    
     print("seed | generated | completed | avg queue | delay, s | conflicts | conflicts/100")
     for r in rows:
         print(f"{r['seed']:4d} | {r['generated']:9d} | {r['completed']:9d} | "

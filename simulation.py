@@ -111,6 +111,7 @@ class Simulation:
         self.contact_pairs = set()
         self.colliding = set()
         self.history = deque(maxlen=900)
+        self.demand_log = deque(maxlen=900)
         self.next_sample = 0.0
         self.set_connections(getattr(config, "INITIAL_CONNECTIONS", default_connections()) if connections is None else connections)
         # Проверяем сигналы сразу, чтобы ошибка показывалась при загрузке.
@@ -159,7 +160,9 @@ class Simulation:
                 if turn not in TURNS:
                     raise ValueError("desired_turn должен вернуть left, straight или right")
                 self.generated += 1
-                self.pending[side].append(Car(self.generated, side, turn, born))
+                car = Car(self.generated, side, turn, born)
+                self.pending[side].append(car)
+                self.demand_log.append({"vehice_id":car.id, "t_born": car.born, "entry_side":car.side, "turn":car.turn})
                 self.next_arrival[side] += self.interval(side)
             if self.pending[side] and not any(c.side == side and c.stage == "approach" and c.lane == 1 and c.s < cfg.MIN_GAP for c in self.cars):
                 car = self.pending[side].popleft()
