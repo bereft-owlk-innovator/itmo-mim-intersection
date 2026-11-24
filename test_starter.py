@@ -62,6 +62,32 @@ class StarterChecks(unittest.TestCase):
                          + sum(map(len, simulation.pending.values())))
         self.assertEqual(run_one(7, 60, 10), run_one(7, 60, 10))
 
+    def test_arrival_journal_is_independent_of_signal_plan(self):
+        journals = []
+        for ns_green in (14, 22):
+            simulation = Simulation(make_config(7, ns_green=ns_green))
+            for _ in range(260):
+                simulation.step()
+            journals.append([
+                (row["t_born"], row["entry_side"], row["turn"])
+                for row in simulation.demand_log
+            ])
+        self.assertEqual(journals[0], journals[1])
+
+    def test_rate_multiplier_scales_interarrival_time(self):
+        config = make_config(7)
+        simulation = Simulation(config)
+        for index, side in enumerate("NESW"):
+            multiplier = config.rate_multiplier(side, 0)
+            self.assertEqual(multiplier, 0.95)
+            raw_interval = config.ARRIVALS[side](
+                random.Random(config.SEED * 1000 + index)
+            )
+            self.assertAlmostEqual(
+                max(0.05, raw_interval / multiplier),
+                simulation.next_arrival[side],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
