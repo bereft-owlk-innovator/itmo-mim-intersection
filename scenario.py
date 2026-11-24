@@ -16,22 +16,20 @@ INITIAL_CONNECTIONS = [
     for side in SIDES for lane in range(3)
 ]
 
-# Средние интервалы поступления: N/S — 2.4 с, E/W — 3.2 с.
-# Не трогайте ARRIVALS, пока не сравнили варианты светофора.
+# Средние интервалы поступления (с). Не меняйте до сравнения светофоров.
+MEAN_ARRIVAL_SECONDS = {"N": 2.4, "E": 3.2, "S": 2.4, "W": 3.2}
 ARRIVALS = {
-    "N": lambda rng: rng.expovariate(1 / 2.4),
-    "E": lambda rng: rng.expovariate(1 / 3.2),
-    "S": lambda rng: rng.expovariate(1 / 2.4),
-    "W": lambda rng: rng.expovariate(1 / 3.2),
+    side: (lambda rng, mean=mean: rng.expovariate(1 / mean))
+    for side, mean in MEAN_ARRIVAL_SECONDS.items()
 }
 
 
+TURN_SHARES = {"left": 0.25, "straight": 0.60, "right": 0.15}
+
+
 def desired_turn(side, rng):
-    """Распределение желаемых манёвров: 25% налево, 60% прямо, 15% направо."""
-    return rng.choices(
-        ["left", "straight", "right"],
-        weights=[0.25, 0.60, 0.15],
-    )[0]
+    """Разыграть желаемый манёвр по долям из сценария."""
+    return rng.choices(tuple(TURN_SHARES), weights=tuple(TURN_SHARES.values()))[0]
 
 
 def choose_lane(side, turn, candidates, queues, rng):
