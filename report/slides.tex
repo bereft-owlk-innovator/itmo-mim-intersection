@@ -1,0 +1,47 @@
+% Overleaf: XeLaTeX, главный файл slides.tex. На защиту — не более 5 минут.
+\documentclass[aspectratio=169]{beamer}
+\usepackage{fontspec}
+\IfFontExistsTF{FreeSans}{\setsansfont{FreeSans}}{\setsansfont{Arial}}
+\usepackage[english,russian]{babel}
+\usetheme{Madrid}
+\definecolor{ink}{RGB}{24,55,71}
+\setbeamercolor{structure}{fg=ink}
+\setbeamertemplate{navigation symbols}{}
+\date{}
+
+\newcommand{\evidence}[1]{\begin{block}{Материалы}\parbox[c][24mm][c]{\linewidth}{\centering #1}\end{block}}
+
+\begin{document}
+\begin{frame}{Моделирование перекрёстка}
+Вариант 2. Множитель спроса 0,95. Пиковый въезд E.
+\evidence{Сводка базового и выбранного планов по таблице 6}
+\end{frame}
+\begin{frame}{Модель и критерий выбора}
+\evidence{Схема перекрёстка и базовый цикл 42 с}
+Целевая функция, ограничения, W, T и число прогонов.
+\end{frame}
+\begin{frame}{Общие случайные потоки}
+\evidence{Тест журнала и стандартные отклонения 20 парных разностей}
+\end{frame}
+\begin{frame}{Задержка и очереди}
+\evidence{Определение накопленной задержки и показатели по въездам}
+\end{frame}
+\begin{frame}{Прогрев и точность}
+\evidence{График с отметкой W, доверительные интервалы и число прогонов}
+\end{frame}
+\begin{frame}{Поиск двухфазного плана}
+\evidence{Тепловая карта сетки и результаты ускоренного поиска}
+\end{frame}
+\begin{frame}{Выбранный план и цикл Уэбстера}
+\evidence{Отложенная проверка, параметры выбранного плана и сравнение циклов}
+\end{frame}
+\begin{frame}{Новая схема фаз}
+\evidence{Диаграмма фаз и сравнение с выбранным двухфазным планом}
+\end{frame}
+\begin{frame}{Пиковый спрос и адаптивное управление}
+\evidence{Графики очередей с окном пика и таблица сравнения политик}
+\end{frame}
+\begin{frame}{Выводы и ограничения модели}
+\evidence{Рекомендация для модели, ограничения и результаты бонусов при наличии}
+\end{frame}
+\end{document}
