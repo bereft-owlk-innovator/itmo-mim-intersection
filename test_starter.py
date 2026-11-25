@@ -63,7 +63,7 @@ class StarterChecks(unittest.TestCase):
         self.assertTrue(b.green("N", 1, "straight", 18))
 
     def test_demand_scale_is_rate_multiplier(self):
-        a, b = make_config(7, demand_scale=1), make_config(7, demand_config={"demand_scale": 1.25})
+        a, b = make_config(7, demand_config=1), make_config(7, demand_config=1.25)
         first = a.ARRIVALS["N"](random.Random(11))
         second = b.ARRIVALS["N"](random.Random(11))
         self.assertAlmostEqual(first / 1.25, second)

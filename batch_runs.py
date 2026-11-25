@@ -181,6 +181,7 @@ def scale_interval(t_start, duration, side, demand_config):
 
 def _config_for(seed, plan, demand_config):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
+    if isinstance(demand_config, float): demand_config={"demand_scale": demand_config}
     if not getattr(scenario, "COLLECT_STATS", False):
         raise ValueError("Для сравнения нужна COLLECT_STATS = True")
     if not getattr(scenario, "COUNT_CONFLICTS", False):
@@ -207,8 +208,8 @@ def _config_for(seed, plan, demand_config):
     return config
 
 
-def make_config(seed, ns_green=None, cycle=None, demand_scale={"demand_scale": 1.0}, ew_green=None, clearance=None):
-    return _config_for(seed, make_plan(cycle, ns_green, ew_green, clearance), demand_scale)
+def make_config(seed, ns_green=None, cycle=None, demand_config={"demand_scale": 1.0}, ew_green=None, clearance=None):
+    return _config_for(seed, make_plan(cycle, ns_green, ew_green, clearance), demand_config)
 
 
 # ----------------------------------------------------------------- единичный прогон
