@@ -198,7 +198,7 @@ def _config_for(seed, plan, demand_config):
     config.DEMAND_LOG_LIMIT = None   # по умолчанию журнал хранит только 900 последних записей
     # demand_scale — множитель интенсивности, поэтому интервалы делятся на него.
     config.ARRIVALS = {
-        side: (lambda rng, t, side=side, generate=generate: scale_interval(t, generate(rng), side, demand_config))
+        side: (lambda rng, t, side=side, generate=generate: scale_interval(t, generate(rng, t), side, demand_config))
         for side, generate in scenario.ARRIVALS.items()
     }
     # Исходная функция scenario.green читает параметры из файла. Для пакетных

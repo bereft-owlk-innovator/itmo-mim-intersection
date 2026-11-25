@@ -19,10 +19,10 @@ INITIAL_CONNECTIONS = [
 # Средние интервалы поступления: N/S — 2.4 с, E/W — 3.2 с.
 # Не трогайте ARRIVALS, пока не сравнили варианты светофора.
 ARRIVALS = {
-    "N": lambda rng: rng.expovariate(1 / 2.4),
-    "E": lambda rng: rng.expovariate(1 / 3.2),
-    "S": lambda rng: rng.expovariate(1 / 2.4),
-    "W": lambda rng: rng.expovariate(1 / 3.2),
+    "N": lambda rng, t: rng.expovariate(1 / 2.4),
+    "E": lambda rng, t: rng.expovariate(1 / 3.2),
+    "S": lambda rng, t: rng.expovariate(1 / 2.4),
+    "W": lambda rng, t: rng.expovariate(1 / 3.2),
 }
 
 
