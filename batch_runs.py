@@ -207,7 +207,7 @@ def _config_for(seed, plan, demand_config):
     return config
 
 
-def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0, ew_green=None, clearance=None):
+def make_config(seed, ns_green=None, cycle=None, demand_scale={"demand_scale": 1.0}, ew_green=None, clearance=None):
     return _config_for(seed, make_plan(cycle, ns_green, ew_green, clearance), demand_scale)
 
 
