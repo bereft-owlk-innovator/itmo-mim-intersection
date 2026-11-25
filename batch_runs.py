@@ -290,9 +290,9 @@ def simulate(plan, seed, T, W, demand_config={"demand_scale": 1.0}, options=None
     return RunOutput(row, rows, list(sim.demand_log) if demand_log else None)
 
 
-def run_once(plan, seed, T, W, demand_scale, options) -> dict:
+def run_once(plan, seed, T, W, demand_config, options) -> dict:
     """Один прогон одного плана с одним SEED; показатели считаются на [W, T]."""
-    return simulate(plan, seed, T, W, demand_scale, options).row
+    return simulate(plan, seed, T, W, demand_config, options).row
 
 
 # ------------------------------------------------------------------ серии прогонов
@@ -350,14 +350,14 @@ def run_batch(plans, seeds, T, W, demand_config={"demand_scale": 1.0}, options=N
     return outputs
 
 
-def evaluate(plan, seeds, *, T=3600, W=300, demand_scale=1.0, options=None, workers=1):
+def evaluate(plan, seeds, *, T=3600, W=300, demand_config={"demand_scale": 1.0}, options=None, workers=1):
     """Строки run_once для плана — по одной на SEED, в порядке seeds. Для скриптов З4–З6."""
-    return [o.row for o in run_batch([plan], seeds, T, W, demand_scale, options, workers=workers)]
+    return [o.row for o in run_batch([plan], seeds, T, W, demand_config, options, workers=workers)]
 
 
-def evaluate_grid(plans, seeds, *, T=3600, W=300, demand_scale=1.0, options=None, workers=None):
+def evaluate_grid(plans, seeds, *, T=3600, W=300, demand_config={"demand_scale": 1.0}, options=None, workers=None):
     """Как evaluate для набора планов; плоский список строк, порядок «план, затем SEED»."""
-    return [o.row for o in run_batch(plans, seeds, T, W, demand_scale, options, workers=workers)]
+    return [o.row for o in run_batch(plans, seeds, T, W, demand_config, options, workers=workers)]
 
 
 # ------------------------------------------------------------------------- сводка
