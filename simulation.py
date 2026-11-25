@@ -130,7 +130,8 @@ class Simulation:
         self.contact_pairs = set()
         self.colliding = set()
         self.history = deque(maxlen=900)
-        self.demand_log = deque(maxlen=900)
+        # Для прогонов длиннее ~10 мин лимит снимается через config.DEMAND_LOG_LIMIT = None.
+        self.demand_log = deque(maxlen=getattr(config, "DEMAND_LOG_LIMIT", 900))
         self.next_sample = 0.0
         self.set_connections(getattr(config, "INITIAL_CONNECTIONS", default_connections()) if connections is None else connections)
         # Проверяем сигналы сразу, чтобы ошибка показывалась при загрузке.
