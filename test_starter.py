@@ -19,7 +19,7 @@ from simulation import Simulation
 class StarterChecks(unittest.TestCase):
     def test_run_once_returns_every_result_field(self):
         result = run_once(plan=None, seed=7, T=60, W=10,
-                          demand_config={"demand_scale": 1.0}, options={})
+                          demand_config=1.0, options={})
         expected_keys = set("""
             run_id plan_id seed T W demand_scale phase_scheme controller
             peak_enabled peak_approach peak_start peak_end peak_multiplier physics

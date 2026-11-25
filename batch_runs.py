@@ -242,9 +242,10 @@ def _counters(sim):
                            conflicts=sim.conflicts, delay=sim.total_delay)
 
 
-def simulate(plan, seed, T, W, demand_config={"demand_scale": 1.0}, options=None, *,
+def simulate(plan, seed, T, W, demand_config=1.0, options=None, *,
              timeseries=False, demand_log=False):
     """Один прогон; помимо строки результата может вернуть ряд очереди и журнал спроса."""
+    if isinstance(demand_config, float): demand_config={"demand_scale": demand_config}
     plan = as_plan(plan)
     if options:
         raise ValueError(f"Параметры options пока не поддерживаются: {sorted(options)}")
@@ -311,7 +312,7 @@ def _run_task(task):
     return index, simulate(*args, **kwargs)
 
 
-def run_batch(plans, seeds, T, W, demand_config={"demand_scale": 1.0}, options=None, *, workers=1,
+def run_batch(plans, seeds, T, W, demand_config=1.0, options=None, *, workers=1,
               timeseries=False, demand_log=False, progress=None):
     """Все пары (план, SEED); результаты в порядке «план, затем SEED» при любом workers.
 
