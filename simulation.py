@@ -140,7 +140,7 @@ class Simulation:
     def interval(self, side, t=None):
         if t is None:
             t = self.time
-        value = float(self.config.ARRIVALS[side](self.arrival_rngs[side]))
+        value = float(self.config.ARRIVALS[side](self.arrival_rngs[side], t))
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"Интервал {side} должен быть конечным и > 0")
         rate_multiplier = getattr(self.config, "rate_multiplier", None)
