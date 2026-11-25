@@ -19,7 +19,7 @@ from simulation import Simulation
 class StarterChecks(unittest.TestCase):
     def test_run_once_returns_every_result_field(self):
         result = run_once(plan=None, seed=7, T=60, W=10,
-                          demand_scale=1.0, options={})
+                          demand_config={"demand_scale": 1.0}, options={})
         expected_keys = set("""
             run_id plan_id seed T W demand_scale phase_scheme controller
             peak_enabled peak_approach peak_start peak_end peak_multiplier physics
@@ -63,7 +63,7 @@ class StarterChecks(unittest.TestCase):
         self.assertTrue(b.green("N", 1, "straight", 18))
 
     def test_demand_scale_is_rate_multiplier(self):
-        a, b = make_config(7, demand_scale=1), make_config(7, demand_scale=1.25)
+        a, b = make_config(7, demand_scale=1), make_config(7, demand_config={"demand_scale": 1.25})
         first = a.ARRIVALS["N"](random.Random(11))
         second = b.ARRIVALS["N"](random.Random(11))
         self.assertAlmostEqual(first / 1.25, second)
@@ -76,7 +76,7 @@ class StarterChecks(unittest.TestCase):
         self.assertEqual(simulation.generated,
                          simulation.completed + len(simulation.cars)
                          + sum(map(len, simulation.pending.values())))
-        self.assertEqual(run_once(None, 7, 60, 10, 1.0, {}), run_once(None, 7, 60, 10, 1.0, {}))
+        self.assertEqual(run_once(None, 7, 60, 10, {"demand_scale": 1.0}, {}), run_once(None, 7, 60, 10, 1.0, {}))
 
     def test_arrival_journal_is_independent_of_signal_plan(self):
         journals = []
@@ -169,7 +169,7 @@ class BatchRunChecks(unittest.TestCase):
         self.assertAlmostEqual(full.row["delay_completed_sec"], sim.total_delay / sim.completed, 5)
 
     def test_timeseries_is_consistent_with_row(self):
-        out = simulate(None, 7, 90, 30, 1.0, timeseries=True)
+        out = simulate(None, 7, 90, 30, {"demand_scale": 1.0}, timeseries=True)
         series = out.timeseries
         self.assertEqual([r["t"] for r in series], list(range(1, 91)))
         for r in series:
@@ -184,7 +184,7 @@ class BatchRunChecks(unittest.TestCase):
         for kwargs in ({"T": 60, "W": 60}, {"T": 60, "W": -1}, {"T": 3601, "W": 0},
                        {"T": 60.5, "W": 0}):
             with self.assertRaises(ValueError, msg=kwargs):
-                run_once(None, 7, demand_scale=1.0, options={}, **kwargs)
+                run_once(None, 7, demand_config={"demand_scale": 1.0}, options={}, **kwargs)
         with self.assertRaises(ValueError):
             run_once(None, 7, 60, 10, 2.0, {})
         with self.assertRaises(ValueError):
@@ -200,7 +200,7 @@ class BatchRunChecks(unittest.TestCase):
         serial = evaluate(plan, [201, 202, 203], T=60, W=10)
         self.assertEqual([r["seed"] for r in serial], [201, 202, 203])
         self.assertEqual(serial, evaluate(plan, range(201, 204), T=60, W=10, workers=2))
-        self.assertEqual(serial[1], run_once(plan, 202, 60, 10, 1.0, {}))
+        self.assertEqual(serial[1], run_once(plan, 202, 60, 10, {"demand_scale": 1.0}, {}))
         grid = evaluate_grid([plan, None], [201, 202], T=60, W=10, workers=2)
         self.assertEqual([(r["plan_id"], r["seed"]) for r in grid],
                          [(plan.plan_id, 201), (plan.plan_id, 202),

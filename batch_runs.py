@@ -164,7 +164,7 @@ def grid_plans(cycles=GRID_CYCLES, shares=GRID_SHARES, clearance=None):
 
 def scale_interval(t_start, duration, side, demand_config):
     demand_scale = demand_config["demand_scale"]
-    if not all(k in demand_config.keys() for k in {"peak_start", "peak_approach", "peak_end", "peak_multiplier"}) or side != demand_config["peak_approach"]: return duration / demand_scale
+    if t_start is None or not all(k in demand_config.keys() for k in {"peak_start", "peak_approach", "peak_end", "peak_multiplier"}) or side != demand_config["peak_approach"]: return duration / demand_scale
 
     peak_start = max(0, demand_config["peak_start"] - t_start)
     peak_end = max(0, demand_config["peak_end"] - t_start)
@@ -198,7 +198,7 @@ def _config_for(seed, plan, demand_config):
     config.DEMAND_LOG_LIMIT = None   # по умолчанию журнал хранит только 900 последних записей
     # demand_scale — множитель интенсивности, поэтому интервалы делятся на него.
     config.ARRIVALS = {
-        side: (lambda rng, t, side=side, generate=generate: scale_interval(t, generate(rng, t), side, demand_config))
+        side: (lambda rng, t=None, side=side, generate=generate: scale_interval(t, generate(rng), side, demand_config))
         for side, generate in scenario.ARRIVALS.items()
     }
     # Исходная функция scenario.green читает параметры из файла. Для пакетных
