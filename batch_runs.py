@@ -181,7 +181,7 @@ def scale_interval(t_start, duration, side, demand_config):
 
 def _config_for(seed, plan, demand_config):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
-    if isinstance(demand_config, float): demand_config={"demand_scale": demand_config}
+    if isinstance(demand_config, (int, float)): demand_config={"demand_scale": demand_config}
     if not getattr(scenario, "COLLECT_STATS", False):
         raise ValueError("Для сравнения нужна COLLECT_STATS = True")
     if not getattr(scenario, "COUNT_CONFLICTS", False):
@@ -246,7 +246,7 @@ def _counters(sim):
 def simulate(plan, seed, T, W, demand_config=1.0, options=None, *,
              timeseries=False, demand_log=False):
     """Один прогон; помимо строки результата может вернуть ряд очереди и журнал спроса."""
-    if isinstance(demand_config, float): demand_config={"demand_scale": demand_config}
+    if isinstance(demand_config, (int, float)): demand_config={"demand_scale": demand_config}
     plan = as_plan(plan)
     if options:
         raise ValueError(f"Параметры options пока не поддерживаются: {sorted(options)}")
