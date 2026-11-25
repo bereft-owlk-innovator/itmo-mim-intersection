@@ -36,8 +36,23 @@ _RUN_ONCE_RESULT_KEYS = (
     "peak_max_queue", "peak_recovery_time_sec", "adaptive_green_extensions",
 )
 
+def scale_interval(t_start, duration, side, scale_config):
+    demand_scale = scale_config["demand_scale"]
+    if not all(k in scale_config.keys() for k in {"peak_start", "peak_approach", "peak_end", "peak_factor"}) or side != scale_config["peak_approach"]: return duration / demand_scale
 
-def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0):
+    peak_start = max(0, scale_config["peak_start"] - t_start)
+    peak_end = max(0, scale_config["peak_end"] - t_start)
+    peak_factor = scale_config["peak_factor"]
+
+    if duration <= peak_start * demand_scale: return duration / demand_scale
+    duration -= peak_start * demand_scale
+    if duration <= (peak_end - peak_start) * demand_scale * peak_factor: return peak_start + duration / demand_scale / peak_factor
+    duration -= (peak_end - peak_start) * demand_scale * peak_factor
+    
+    return peak_end + duration / demand_scale
+
+
+def make_config(seed, ns_green=None, cycle=None, scale_config={"demand_scale": 1.0}):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
     config = SimpleNamespace(
         **{name: value for name, value in vars(scenario).items() if not name.startswith("__")}
@@ -48,11 +63,11 @@ def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0):
     config.EW_GREEN = config.CYCLE - 2 * config.CLEARANCE - config.NS_GREEN
     if config.NS_GREEN < 6 or config.EW_GREEN < 6:
         raise ValueError("Для обоих направлений требуется не менее 6 с зелёного")
-    if not (0.5 <= demand_scale <= 1.5):
+    if not (0.5 <= scale_config["demand_scale"] <= 1.5):
         raise ValueError("demand_scale должен быть от 0.5 до 1.5")
     # demand_scale — множитель интенсивности, поэтому интервалы делятся на него.
     config.ARRIVALS = {
-        side: (lambda rng, generate=generate: generate(rng) / demand_scale)
+        side: (lambda rng, t, side=side, generate=generate: scale_interval(t, generate(rng), side, scale_config))
         for side, generate in scenario.ARRIVALS.items()
     }
     # Исходная функция scenario.green читает параметры из файла. Для пакетных
@@ -113,9 +128,16 @@ def main():
                    help="Множитель интенсивности всех входящих потоков (0.5–1.5)")
     p.add_argument("--out", type=Path, default=Path("results/results.csv"))
     p.add_argument("--demand-log", type=Path, default=Path("results/demand_log.csv"))
+    
+    p.add_argument("--peak-start", type=int, help="Время начала пиковового спроса")
+    p.add_argument("--peak-approach", choices=list(scenario.SIDES), help="Сторона с которой происходит пиковый спрос")
+    p.add_argument("--peak-end", type=int, help="Время начала пиковового спроса")
+    p.add_argument("--peak-factor", type=float,
+                   help="Множитель интенсивности при пиковом спроса (0.5–1.5)")
+
     a = p.parse_args()
-    if not (60 <= a.seconds <= 900) or not (0 <= a.warmup < a.seconds):
-        p.error("Требуется 60 <= seconds <= 900 и 0 <= warmup < seconds")
+    if not (60 <= a.seconds <= 3600) or not (0 <= a.warmup < a.seconds):
+        p.error("Требуется 60 <= seconds <= 3600 и 0 <= warmup < seconds")
     if not getattr(scenario, "COLLECT_STATS", False):
         p.error("Для сравнения нужна COLLECT_STATS = True")
     if not getattr(scenario, "COUNT_CONFLICTS", False):
@@ -124,9 +146,11 @@ def main():
         p.error("Требуется 24 <= cycle <= 180")
     if not (0.5 <= a.demand_scale <= 1.5):
         p.error("Требуется 0.5 <= demand-scale <= 1.5")
+    if a.peak_factor is not None and not (0.5 <= a.peak_factor <= 1.5):
+        p.error("Требуется 0.5 <= peak-factor <= 1.5")
     try:
         results = [run_one(seed, a.seconds, a.warmup, a.ns_green,
-                        a.cycle, a.demand_scale) for seed in a.seeds]
+                        a.cycle, {k: getattr(a, k) for k in {"demand_scale", "peak_start", "peak_approach", "peak_end", "peak_factor"}}) for seed in a.seeds]
         rows = [r["rows"] for r in results]
         demand_log = [r["demand_log"] for r in results]
     except ValueError as exc:

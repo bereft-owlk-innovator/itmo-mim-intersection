@@ -129,8 +129,8 @@ class Simulation:
         self.total_delay = self.total_travel = 0.0
         self.contact_pairs = set()
         self.colliding = set()
-        self.history = deque(maxlen=900)
-        self.demand_log = deque(maxlen=900)
+        self.history = deque(maxlen=10000)
+        self.demand_log = deque(maxlen=10000)
         self.next_sample = 0.0
         self.set_connections(getattr(config, "INITIAL_CONNECTIONS", default_connections()) if connections is None else connections)
         # Проверяем сигналы сразу, чтобы ошибка показывалась при загрузке.
@@ -139,7 +139,7 @@ class Simulation:
     def interval(self, side, t=None):
         if t is None:
             t = self.time
-        value = float(self.config.ARRIVALS[side](self.arrival_rngs[side]))
+        value = float(self.config.ARRIVALS[side](self.arrival_rngs[side], t))
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"Интервал {side} должен быть конечным и > 0")
         rate_multiplier = getattr(self.config, "rate_multiplier", None)
