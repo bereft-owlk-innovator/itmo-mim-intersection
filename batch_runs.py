@@ -119,8 +119,8 @@ class Plan:
 
     @property
     def plan_id(self):
-        return (f"cycle-{self.cycle:g}_ns-{self.ns_green:g}_"
-                f"ew-{self.ew_green:g}_clearance-{self.clearance:g}")
+        return (f"cycle-{_num(self.cycle)!r}_ns-{_num(self.ns_green)!r}_"
+                f"ew-{_num(self.ew_green)!r}_clearance-{_num(self.clearance)!r}")
 
 
 def make_plan(cycle=None, ns_green=None, ew_green=None, clearance=None):
@@ -249,7 +249,7 @@ def simulate(plan, seed, T, W, demand_scale=1.0, options=None, *,
             series.append((step // STEPS_PER_SECOND, sum(queue.values()), queue))
     end = _counters(sim)
 
-    observed = [total for t, total, _ in series if t >= W]
+    observed = ([0] if W == 0 else []) + [total for t, total, _ in series if t >= W]
     generated = end.generated - start.generated
     completed = end.completed - start.completed
     conflicts = end.conflicts - start.conflicts
