@@ -11,6 +11,17 @@ CHANGE = 150.0
 EXIT_LENGTH = 364.0
 
 
+class _StoredRandom:
+    def __init__(self, values):
+        self._values = iter(values)
+
+    def random(self):
+        try:
+            return next(self._values)
+        except StopIteration as exc:
+            raise RuntimeError("Для выбора полосы заранее не хватило случайных значений") from exc
+
+
 def rotate(x, y, side):
     for _ in range(SIDES.index(side)):
         x, y = -y, x
@@ -92,6 +103,8 @@ class Car:
     speed: float = 0.0
     delay: float = 0.0
     route: Route | None = None
+    lane_tiebreakers: tuple = ()
+    trajectory_pick: float = 0.0
 
 
 class Simulation:
@@ -101,26 +114,40 @@ class Simulation:
         if not math.isfinite(config.MIN_GAP) or config.MIN_GAP < 20:
             raise ValueError("MIN_GAP должен быть не меньше 20")
         self.config = config
-        self.rng = random.Random(config.SEED)
+        self.arrival_rngs = {
+            side: random.Random(config.SEED * 1000 + index)
+            for index, side in enumerate(SIDES)
+        }
+        self.maneuver_rng = random.Random(config.SEED * 1000 + 4)
+        self.lane_rng = random.Random(config.SEED * 1000 + 5)
+        self.trajectory_rng = random.Random(config.SEED * 1000 + 6)
         self.time = 0.0
         self.cars = []
         self.pending = {s: deque() for s in SIDES}
-        self.next_arrival = {s: self.interval(s) for s in SIDES}
+        self.next_arrival = {s: self.interval(s, self.time) for s in SIDES}
         self.generated = self.completed = self.conflicts = 0
         self.total_delay = self.total_travel = 0.0
         self.contact_pairs = set()
         self.colliding = set()
         self.history = deque(maxlen=900)
+        # Для прогонов длиннее ~10 мин лимит снимается через config.DEMAND_LOG_LIMIT = None.
+        self.demand_log = deque(maxlen=getattr(config, "DEMAND_LOG_LIMIT", 900))
         self.next_sample = 0.0
         self.set_connections(getattr(config, "INITIAL_CONNECTIONS", default_connections()) if connections is None else connections)
         # Проверяем сигналы сразу, чтобы ошибка показывалась при загрузке.
         self.signals()
 
-    def interval(self, side):
-        value = float(self.config.ARRIVALS[side](self.rng))
+    def interval(self, side, t=None):
+        if t is None:
+            t = self.time
+        value = float(self.config.ARRIVALS[side](self.arrival_rngs[side]))
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"Интервал {side} должен быть конечным и > 0")
-        return max(0.05, value)
+        rate_multiplier = getattr(self.config, "rate_multiplier", None)
+        multiplier = 1.0 if rate_multiplier is None else float(rate_multiplier(side, t))
+        if not math.isfinite(multiplier) or multiplier <= 0:
+            raise ValueError(f"Множитель интенсивности {side} должен быть конечным и > 0")
+        return max(0.05, value / multiplier)
 
     def set_connections(self, connections):
         self.connections = validate_connections(connections)
@@ -155,12 +182,18 @@ class Simulation:
         for side in SIDES:
             while self.next_arrival[side] <= self.time:
                 born = self.next_arrival[side]
-                turn = cfg.desired_turn(side, self.rng) if hasattr(cfg, "desired_turn") else "straight"
+                turn = cfg.desired_turn(side, self.maneuver_rng) if hasattr(cfg, "desired_turn") else "straight"
                 if turn not in TURNS:
                     raise ValueError("desired_turn должен вернуть left, straight или right")
                 self.generated += 1
-                self.pending[side].append(Car(self.generated, side, turn, born))
-                self.next_arrival[side] += self.interval(side)
+                car = Car(
+                    self.generated, side, turn, born,
+                    lane_tiebreakers=tuple(self.lane_rng.random() for _ in range(3)),
+                    trajectory_pick=self.trajectory_rng.random(),
+                )
+                self.pending[side].append(car)
+                self.demand_log.append({"vehice_id":car.id, "t_born": car.born, "entry_side":car.side, "turn":car.turn})
+                self.next_arrival[side] += self.interval(side, born)
             if self.pending[side] and not any(c.side == side and c.stage == "approach" and c.lane == 1 and c.s < cfg.MIN_GAP for c in self.cars):
                 car = self.pending[side].popleft()
                 if getattr(cfg, "COLLECT_STATS", False):
@@ -176,7 +209,10 @@ class Simulation:
                     candidates = sorted({r.key[1] for r in self.available(car)})
                     if candidates:
                         queues = {lane: sum(c.side == car.side and c.stage == "approach" and c.lane == lane and c.s >= car.s for c in self.cars if c is not car) for lane in range(3)}
-                        lane = cfg.choose_lane(car.side, car.turn, candidates, queues, self.rng) if hasattr(cfg, "choose_lane") else candidates[0]
+                        lane = cfg.choose_lane(
+                            car.side, car.turn, candidates, queues,
+                            _StoredRandom(car.lane_tiebreakers),
+                        ) if hasattr(cfg, "choose_lane") else candidates[0]
                         if lane not in candidates:
                             raise ValueError("choose_lane вернул недопустимую полосу")
                         if not any(c is not car and c.stage == "approach" and c.side == car.side and c.lane == lane and abs(c.s-car.s) < cfg.MIN_GAP for c in self.cars):
@@ -196,7 +232,8 @@ class Simulation:
                     # Не входить вплотную за машиной на той же траектории.
                     free = [r for r in routes if not any(o.stage == "crossing" and o.route.key == r.key and o.s < cfg.MIN_GAP for o in self.cars)]
                     if free:
-                        car.route = self.rng.choice(free)
+                        index = min(int(car.trajectory_pick * len(free)), len(free) - 1)
+                        car.route = free[index]
                         car.stage, car.s = "crossing", 0.0
                         old_s = -max(0, STOP-old_s)
             elif car.stage == "crossing":
