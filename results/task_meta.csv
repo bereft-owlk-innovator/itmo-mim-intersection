@@ -1,0 +1,2 @@
+plan_A,plan_B,T_sec,W_sec,demand_scale,seeds_common,seeds_independent_A,seeds_independent_B,corr_delay_A_delay_B_common,var_ratio_common_over_indep,journal_identical,journal_n_a,journal_n_b,journal_seed,journal_horizon_sec
+"Plan(cycle=42, ns_green=18, ew_green=18, clearance=3)","Plan(cycle=42, ns_green=22, ew_green=14, clearance=3)",3600,300,1.0,1-20,1-20,21-40,0.75225,0.350743,1,2445,2445,1,1800
