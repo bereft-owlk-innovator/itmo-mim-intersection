@@ -162,15 +162,48 @@ def grid_plans(cycles=GRID_CYCLES, shares=GRID_SHARES, clearance=None):
     return plans
 
 
+def scale_interval(t_start, duration, side, demand_config):
+    demand_scale = demand_config["demand_scale"]
+    if t_start is None or not all(k in demand_config.keys() for k in {"peak_start", "peak_approach", "peak_end", "peak_multiplier"}) or side != demand_config["peak_approach"]: return duration / demand_scale
+
+    peak_start = max(0, demand_config["peak_start"] - t_start)
+    peak_end = max(0, demand_config["peak_end"] - t_start)
+    peak_multiplier = demand_config["peak_multiplier"]
+
+    if duration <= peak_start * demand_scale: return duration / demand_scale
+    duration -= peak_start * demand_scale
+    if duration <= (peak_end - peak_start) * demand_scale * peak_multiplier: return peak_start + duration / demand_scale / peak_multiplier
+    duration -= (peak_end - peak_start) * demand_scale * peak_multiplier
+    
+    return peak_end + duration / demand_scale
+
 # ------------------------------------------------------------------- конфигурация
 
-def _config_for(seed, plan, demand_scale):
+def _config_for(seed, plan, demand_config):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
+    if isinstance(demand_config, (int, float)):
+        demand_config = {"demand_scale": demand_config}
+    peak_keys = ("peak_start", "peak_approach", "peak_end", "peak_multiplier")
+    supplied = [demand_config.get(key) is not None for key in peak_keys]
+    if any(supplied):
+        if not all(supplied):
+            raise ValueError("Параметры peak_start, peak_approach, peak_end и peak_multiplier нужно задавать вместе")
+        if demand_config["peak_approach"] not in scenario.SIDES:
+            raise ValueError("Недопустимое значение peak_approach")
+        start, end, multiplier = (demand_config[key] for key in
+                                  ("peak_start", "peak_end", "peak_multiplier"))
+        if not all(isinstance(value, (int, float)) and math.isfinite(value)
+                   for value in (start, end, multiplier)):
+            raise ValueError("Время и множитель пикового спроса должны быть конечными числами")
+        if not 0 <= start < end:
+            raise ValueError("Требуется 0 <= peak_start < peak_end")
+        if not 0.5 <= multiplier <= 1.5:
+            raise ValueError("peak_multiplier должен быть от 0.5 до 1.5")
     if not getattr(scenario, "COLLECT_STATS", False):
         raise ValueError("Для сравнения нужна COLLECT_STATS = True")
     if not getattr(scenario, "COUNT_CONFLICTS", False):
         raise ValueError("Для сравнения нужна COUNT_CONFLICTS = True")
-    if not (0.5 <= demand_scale <= 1.5):
+    if not (0.5 <= demand_config["demand_scale"] <= 1.5):
         raise ValueError("demand_scale должен быть от 0.5 до 1.5")
     config = SimpleNamespace(
         **{name: value for name, value in vars(scenario).items() if not name.startswith("__")}
@@ -183,7 +216,7 @@ def _config_for(seed, plan, demand_scale):
     config.DEMAND_LOG_LIMIT = None   # по умолчанию журнал хранит только 900 последних записей
     # demand_scale — множитель интенсивности, поэтому интервалы делятся на него.
     config.ARRIVALS = {
-        side: (lambda rng, generate=generate: generate(rng) / demand_scale)
+        side: (lambda rng, t=None, side=side, generate=generate: scale_interval(t, generate(rng), side, demand_config))
         for side, generate in scenario.ARRIVALS.items()
     }
     # Исходная функция scenario.green читает параметры из файла. Для пакетных
@@ -192,8 +225,8 @@ def _config_for(seed, plan, demand_scale):
     return config
 
 
-def make_config(seed, ns_green=None, cycle=None, demand_scale=1.0, ew_green=None, clearance=None):
-    return _config_for(seed, make_plan(cycle, ns_green, ew_green, clearance), demand_scale)
+def make_config(seed, ns_green=None, cycle=None, demand_config={"demand_scale": 1.0}, ew_green=None, clearance=None):
+    return _config_for(seed, make_plan(cycle, ns_green, ew_green, clearance), demand_config)
 
 
 # ----------------------------------------------------------------- единичный прогон
@@ -227,15 +260,16 @@ def _counters(sim):
                            conflicts=sim.conflicts, delay=sim.total_delay)
 
 
-def simulate(plan, seed, T, W, demand_scale=1.0, options=None, *,
+def simulate(plan, seed, T, W, demand_config=1.0, options=None, *,
              timeseries=False, demand_log=False):
     """Один прогон; помимо строки результата может вернуть ряд очереди и журнал спроса."""
+    if isinstance(demand_config, (int, float)): demand_config={"demand_scale": demand_config}
     plan = as_plan(plan)
     if options:
         raise ValueError(f"Параметры options пока не поддерживаются: {sorted(options)}")
     _check_run_args(seed, T, W)
     T, W = int(T), int(W)
-    config = _config_for(seed, plan, demand_scale)
+    config = _config_for(seed, plan, demand_config)
     sim = Simulation(config, config.INITIAL_CONNECTIONS)
 
     start = _counters(sim)                       # состояние на t = 0, если W == 0
@@ -256,7 +290,7 @@ def simulate(plan, seed, T, W, demand_scale=1.0, options=None, *,
     row = dict.fromkeys(_RUN_ONCE_RESULT_KEYS)
     row.update(
         run_id=f"{plan.plan_id}-seed-{seed}", plan_id=plan.plan_id, seed=seed, T=T, W=W,
-        demand_scale=demand_scale, cycle=plan.cycle, clearance=plan.clearance,
+        **demand_config, cycle=plan.cycle, clearance=plan.clearance,
         ns_green=plan.ns_green, ew_green=plan.ew_green,
         generated=generated, completed=completed, remaining=generated - completed,
         mean_queue_after_warmup=round(sum(observed) / len(observed), 6),
@@ -275,9 +309,9 @@ def simulate(plan, seed, T, W, demand_scale=1.0, options=None, *,
     return RunOutput(row, rows, list(sim.demand_log) if demand_log else None)
 
 
-def run_once(plan, seed, T, W, demand_scale, options) -> dict:
+def run_once(plan, seed, T, W, demand_config, options) -> dict:
     """Один прогон одного плана с одним SEED; показатели считаются на [W, T]."""
-    return simulate(plan, seed, T, W, demand_scale, options).row
+    return simulate(plan, seed, T, W, demand_config, options).row
 
 
 # ------------------------------------------------------------------ серии прогонов
@@ -296,7 +330,7 @@ def _run_task(task):
     return index, simulate(*args, **kwargs)
 
 
-def run_batch(plans, seeds, T, W, demand_scale=1.0, options=None, *, workers=1,
+def run_batch(plans, seeds, T, W, demand_config=1.0, options=None, *, workers=1,
               timeseries=False, demand_log=False, progress=None):
     """Все пары (план, SEED); результаты в порядке «план, затем SEED» при любом workers.
 
@@ -306,13 +340,13 @@ def run_batch(plans, seeds, T, W, demand_scale=1.0, options=None, *, workers=1,
     plans = [as_plan(p) for p in plans]
     seeds = _check_seeds(seeds)
     tasks = [(i * len(seeds) + j,
-              (plan, seed, T, W, demand_scale, options),
+              (plan, seed, T, W, demand_config, options),
               {"timeseries": timeseries, "demand_log": demand_log and i == 0})
              for i, plan in enumerate(plans) for j, seed in enumerate(seeds)]
     if not tasks:
         raise ValueError("Нужен хотя бы один план")
     _check_run_args(seeds[0], T, W)              # ошибки параметров — до запуска процессов
-    _config_for(seeds[0], plans[0], demand_scale)
+    _config_for(seeds[0], plans[0], demand_config)
     workers = (os.cpu_count() or 1) if workers is None else workers
     workers = max(1, min(workers, len(tasks)))
 
@@ -335,14 +369,14 @@ def run_batch(plans, seeds, T, W, demand_scale=1.0, options=None, *, workers=1,
     return outputs
 
 
-def evaluate(plan, seeds, *, T=3600, W=300, demand_scale=1.0, options=None, workers=1):
+def evaluate(plan, seeds, *, T=3600, W=300, demand_config={"demand_scale": 1.0}, options=None, workers=1):
     """Строки run_once для плана — по одной на SEED, в порядке seeds. Для скриптов З4–З6."""
-    return [o.row for o in run_batch([plan], seeds, T, W, demand_scale, options, workers=workers)]
+    return [o.row for o in run_batch([plan], seeds, T, W, demand_config, options, workers=workers)]
 
 
-def evaluate_grid(plans, seeds, *, T=3600, W=300, demand_scale=1.0, options=None, workers=None):
+def evaluate_grid(plans, seeds, *, T=3600, W=300, demand_config={"demand_scale": 1.0}, options=None, workers=None):
     """Как evaluate для набора планов; плоский список строк, порядок «план, затем SEED»."""
-    return [o.row for o in run_batch(plans, seeds, T, W, demand_scale, options, workers=workers)]
+    return [o.row for o in run_batch(plans, seeds, T, W, demand_config, options, workers=workers)]
 
 
 # ------------------------------------------------------------------------- сводка
@@ -496,6 +530,13 @@ def build_parser():
     p.add_argument("--demand-log", type=Path, default=None, metavar="PATH",
                    help="журнал входного спроса (results/demand_log_<tag>.csv)")
     p.add_argument("--no-demand-log", action="store_true", help="не писать журнал входного спроса")
+
+    p.add_argument("--peak-start", type=int, help="Время начала пиковового спроса")
+    p.add_argument("--peak-approach", choices=list(scenario.SIDES), help="Сторона с которой происходит пиковый спрос")
+    p.add_argument("--peak-end", type=int, help="Время начала пиковового спроса")
+    p.add_argument("--peak-multiplier", type=float,
+                   help="Множитель интенсивности при пиковом спроса (0.5–1.5)")
+    
     return p
 
 
@@ -534,6 +575,8 @@ def main(argv=None):
         p.error("Требуется 24 <= cycle <= 180")
     if not (0.5 <= a.demand_scale <= 1.5):
         p.error("Требуется 0.5 <= demand-scale <= 1.5")
+    if a.peak_multiplier is not None and not (0.5 <= a.peak_multiplier <= 1.5):
+        p.error("Требуется 0.5 <= peak-multiplier <= 1.5")
     if a.workers is not None and a.workers < 1:
         p.error("Требуется workers >= 1")
     if a.tag is not None and not re.fullmatch(r"[\w.-]+", a.tag):
@@ -545,7 +588,8 @@ def main(argv=None):
                  [make_plan(a.cycle, a.ns_green, a.ew_green, a.clearance)])
         _check_seeds(seeds)
         started = time.perf_counter()
-        outputs = run_batch(plans, seeds, a.seconds, a.warmup, a.demand_scale,
+        outputs = run_batch(plans, seeds, a.seconds, a.warmup, 
+                            {k: getattr(a, k) for k in {"demand_scale", "peak_start", "peak_approach", "peak_end", "peak_multiplier"}},
                             workers=a.workers, timeseries=a.timeseries is not None,
                             demand_log=not a.no_demand_log, progress=_progress)
     except ValueError as exc:
