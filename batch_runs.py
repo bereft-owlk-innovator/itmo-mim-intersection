@@ -181,7 +181,24 @@ def scale_interval(t_start, duration, side, demand_config):
 
 def _config_for(seed, plan, demand_config):
     # Отдельный объект конфигурации для каждого прогона; функции берутся из scenario.py.
-    if isinstance(demand_config, (int, float)): demand_config={"demand_scale": demand_config}
+    if isinstance(demand_config, (int, float)):
+        demand_config = {"demand_scale": demand_config}
+    peak_keys = ("peak_start", "peak_approach", "peak_end", "peak_multiplier")
+    supplied = [demand_config.get(key) is not None for key in peak_keys]
+    if any(supplied):
+        if not all(supplied):
+            raise ValueError("Параметры peak_start, peak_approach, peak_end и peak_multiplier нужно задавать вместе")
+        if demand_config["peak_approach"] not in scenario.SIDES:
+            raise ValueError("Недопустимое значение peak_approach")
+        start, end, multiplier = (demand_config[key] for key in
+                                  ("peak_start", "peak_end", "peak_multiplier"))
+        if not all(isinstance(value, (int, float)) and math.isfinite(value)
+                   for value in (start, end, multiplier)):
+            raise ValueError("Время и множитель пикового спроса должны быть конечными числами")
+        if not 0 <= start < end:
+            raise ValueError("Требуется 0 <= peak_start < peak_end")
+        if not 0.5 <= multiplier <= 1.5:
+            raise ValueError("peak_multiplier должен быть от 0.5 до 1.5")
     if not getattr(scenario, "COLLECT_STATS", False):
         raise ValueError("Для сравнения нужна COLLECT_STATS = True")
     if not getattr(scenario, "COUNT_CONFLICTS", False):
