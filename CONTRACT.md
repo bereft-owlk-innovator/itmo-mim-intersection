@@ -160,3 +160,7 @@ evaluate_grid(plans, seeds, *, T=3600, W=300, demand_scale=1.0, options=None, wo
 ```
 
 `evaluate` возвращает по строке `run_once` на каждый SEED в порядке `seeds`; `evaluate_grid` — плоский список «план, затем SEED». `plan` — `Plan(cycle, ns_green, ew_green, clearance)`, словарь аргументов `make_plan` или `None` (базовый план `scenario.py`). `options` пока должен быть пустым: неподдерживаемые ключи вызывают `ValueError`, а не игнорируются. `summarize(rows)` строит строки `summary_*.csv`. Скрипты из `scripts/` запускаются из корня репозитория как `uv run python -m scripts.<имя>`.
+
+### Сравнение двух планов на общих и независимых потоках
+
+uv run python -m scripts.task_pairs
